@@ -9,7 +9,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # 2. Serveur (FastAPI) qui sert aussi l'interface
-FROM python:3.12-slim
+FROM python:3.15-slim
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="SynCiné" \
       org.opencontainers.image.description="Streaming, cinémas, watchlists et recommandations, réunis dans une PWA auto-hébergée" \
