@@ -20,15 +20,19 @@ from app.services.context import SHARED_ID, Ctx
 from app.services.errors import ServiceError
 from app.services.justwatch_client import JustWatchClient
 from app.services.letterboxd_client import LetterboxdClient
+from app.services import arr_categories
+from app.services.arr_client import ArrClient
 from app.services.seerr_client import SeerrClient
 from app.services.tmdb_client import TMDBClient
 
 log = logging.getLogger(__name__)
 
-SERVICES = ("tmdb", "plex", "jellyfin", "trakt", "seerr", "letterboxd", "justwatch", "cinema")
-LABELS = {"tmdb": "TMDB", "plex": "Plex", "jellyfin": "Jellyfin", "trakt": "Trakt", "seerr": "Seerr", "letterboxd": "Letterboxd", "justwatch": "JustWatch", "cinema": "Cinéma (AlloCiné)"}
+SERVICES = ("tmdb", "plex", "jellyfin", "trakt", "seerr", "radarr", "sonarr", "letterboxd", "justwatch", "cinema")
+LABELS = {"tmdb": "TMDB", "plex": "Plex", "jellyfin": "Jellyfin", "trakt": "Trakt", "seerr": "Seerr", "radarr": "Radarr", "sonarr": "Sonarr", "letterboxd": "Letterboxd", "justwatch": "JustWatch", "cinema": "Cinéma (AlloCiné)"}
 
-GLOBAL_SERVICES = ("tmdb", "plex", "jellyfin", "seerr", "justwatch")
+GLOBAL_SERVICES = ("tmdb", "plex", "jellyfin", "seerr", "radarr", "sonarr", "justwatch")
+# Outils de l'administrateur : jamais montrés à un membre (ni leur état)
+ADMIN_SERVICES = ("radarr", "sonarr")
 
 # État en mémoire : {(0 | id du compte, service): {"ok": bool, "message": str, "checked_at": iso}}
 _state: dict[tuple[int, str], dict] = {}
@@ -58,6 +62,8 @@ def used_services(s) -> list[str]:
         "jellyfin": bool(s.jellyfin_url and (_own(s).jellyfin_token or (s.jellyfin_api_key and _own(s).id == SHARED_ID))),
         "trakt": bool(s.trakt_client_id and s.trakt_access_token),
         "seerr": bool(s.seerr_url and s.seerr_api_key),
+        "radarr": bool(s.radarr_url and s.radarr_api_key),
+        "sonarr": bool(s.sonarr_url and s.sonarr_api_key),
         "letterboxd": bool(s.letterboxd_username),
         "justwatch": bool(s.justwatch_enabled),
         "cinema": bool(s.cinema_list),
@@ -97,6 +103,15 @@ async def test_service(ctx: Ctx, service: str) -> dict:
                 return {"ok": False, "message": "URL ou clé API Seerr manquante"}
             d = await SeerrClient(s.seerr_url, s.seerr_api_key).test()
             return {"ok": True, "message": f"Seerr connecté{' (v' + d['version'] + ')' if d.get('version') else ''}", "details": d}
+        if service in ADMIN_SERVICES:
+            url, key = getattr(s, f"{service}_url"), getattr(s, f"{service}_api_key")
+            label = LABELS[service]
+            if not (url and key):
+                return {"ok": False, "message": f"URL ou clé API {label} manquante"}
+            d = await ArrClient(service, url, key).test()
+            if not arr_categories.complete(arr_categories.load(s, service)):
+                return {"ok": True, "message": f"{label} connecté : crée une catégorie (dossier et qualité)", "details": d}
+            return {"ok": True, "message": f"{label} connecté{' (v' + d['version'] + ')' if d.get('version') else ''}", "details": d}
         if service == "letterboxd":
             if not s.letterboxd_username:
                 return {"ok": False, "message": "Aucun nom d'utilisateur Letterboxd"}

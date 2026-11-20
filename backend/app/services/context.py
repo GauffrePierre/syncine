@@ -22,6 +22,8 @@ from app.services.mock_data import MockPlex, MockTMDB, MockTrakt
 from app.services.jellyfin_client import JellyfinClient
 from app.services.plex_account import PlexAccount
 from app.services.plex_client import PlexClient
+from app.services import arr_categories
+from app.services.arr_client import ArrClient
 from app.services.seerr_client import SeerrClient
 from app.services.tmdb_client import TMDBClient
 from app.services.trakt_client import TraktClient
@@ -33,6 +35,8 @@ GLOBAL_FIELDS = frozenset({
     "seerr_url", "seerr_api_key", "justwatch_enabled", "trakt_client_id", "trakt_client_secret", "youtube_api_key",
     "jellyfin_url", "jellyfin_public_url", "jellyfin_api_key", "jellyfin_server_id", "jellyfin_server_name", "jellyfin_kind",
     "admins_full_access",
+    "radarr_url", "radarr_api_key", "radarr_root_folder", "radarr_quality_profile", "radarr_categories",
+    "sonarr_url", "sonarr_api_key", "sonarr_root_folder", "sonarr_quality_profile", "sonarr_categories",
 })
 SHARED_ID = 1
 
@@ -158,6 +162,24 @@ class Ctx:
         if self.settings.seerr_url and self.settings.seerr_api_key:
             return SeerrClient(self.settings.seerr_url, self.settings.seerr_api_key)
         return None
+
+    def _arr(self, kind: str) -> ArrClient | None:
+        # Ajoute des titres au serveur : jamais pour un membre qui n'y est pas relié
+        if not (self.is_admin or self.media is not None):
+            return None
+        s = self.settings
+        url, key = getattr(s, f"{kind}_url"), getattr(s, f"{kind}_api_key")
+        if not (url and key):
+            return None
+        return ArrClient(kind, url, key, arr_categories.load(s, kind))
+
+    @cached_property
+    def radarr(self) -> ArrClient | None:
+        return self._arr("radarr")
+
+    @cached_property
+    def sonarr(self) -> ArrClient | None:
+        return self._arr("sonarr")
 
     @cached_property
     def letterboxd(self) -> LetterboxdClient | None:

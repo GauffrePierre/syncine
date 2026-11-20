@@ -4,6 +4,25 @@ Notable changes in each SynCiné version (named CinéSync up to 1.0.2). Each sec
 [GitHub Releases](https://github.com/GauffrePierre/syncine/releases). Docker image: `ghcr.io/gauffrepierre/syncine`
 (from 1.1.0). The database is migrated automatically when a new version starts.
 
+## 1.6.0 - 2026-11-20
+
+- Radarr and Sonarr: SynCiné can now send accepted requests straight to Radarr (movies) and Sonarr (series), which
+  add the title and search for it. Set them up in Profile → Connections (address and API key). Nothing is
+  downloaded before a request is accepted.
+- Categories: create your own categories for each one (for example movies, shows, documentaries and concerts;
+  series, cartoons, anime and documentaries), each with its destination folder and default quality. One click
+  adds the usual ones.
+- When you accept a request, SynCiné suggests the category from the title's genre (documentary, concert film,
+  stand-up show, animation, Japanese anime…). You can pick another category or another quality (1080p, 4K…). Anime
+  series are added to Sonarr as anime, with absolute episode numbering.
+- Your own requests from a title page open the same window, already filled in: just click Send.
+- Members allowed to skip approval go straight through with the suggested category. Radarr and Sonarr settings
+  are for the main administrator only, and members never see them.
+- If Radarr or Sonarr does not answer, the request stays pending instead of being lost. Seerr is still used when
+  Radarr or Sonarr is not set up.
+- Account option renamed "Requests accepted without approval" (previously "sent directly to Seerr").
+- iPhone: list and text fields in these settings no longer make the page zoom in.
+
 ## 1.5.1 - 2026-11-13
 
 - "Sign in with Plex" (sign-in page and Profile): a QR code is shown next to the code. Scan it with your phone:

@@ -1,7 +1,8 @@
 """Demandes d'ajout à la bibliothèque Plex.
 
-- Admin, ou membre autorisé par l'admin, avec Seerr connecté : envoyée directement à Seerr.
-- Sinon : file d'attente, traitée par l'administrateur dans SynCiné (onglet Demandes).
+- Admin, ou membre autorisé par l'admin : acceptée tout de suite, envoyée à Radarr (film) ou Sonarr (série) s'ils
+  sont réglés, sinon à Seerr.
+- Sinon : file d'attente ; l'administrateur l'accepte (même envoi) ou la refuse dans SynCiné (onglet Demandes).
 Chaque membre voit ses demandes ; l'admin les voit toutes.
 """
 
@@ -13,7 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 
 from app.models import MediaRequest, Notification, User
-from app.services import messages
+from app.services import arr_categories, messages
 from app.services.context import Ctx, get_ctx
 from app.services.errors import NotConfigured, ServiceError
 
@@ -34,6 +35,9 @@ class RequestIn(BaseModel):
     poster: str | None = Field(None, max_length=300)
     seasons: list[int] | None = Field(None, max_length=100)
     note: str = Field("", max_length=500)
+    # Demande de l'administrateur, envoyée tout de suite : catégorie et qualité Radarr / Sonarr (ignorées sinon)
+    category: str | None = Field(None, max_length=40)
+    quality_profile: int | None = Field(None, gt=0)
 
     @field_validator("poster")
     @classmethod
@@ -91,8 +95,16 @@ def _out(ctx: Ctx, req: MediaRequest, names: dict[int, str]) -> dict:
     return _for(ctx, {**req.to_dict(), "user_name": names.get(req.user_id, "")})
 
 
-def can_send_direct(ctx: Ctx) -> bool:
-    return ctx.seerr is not None and (ctx.is_admin or ctx.user.can_request_direct)
+def destination(ctx: Ctx, media_type: str) -> str | None:
+    """Où part une demande acceptée : Radarr (films) / Sonarr (séries) s'ils sont prêts, sinon Seerr."""
+    arr = ctx.radarr if media_type == "movie" else ctx.sonarr
+    if arr is not None and arr.ready:
+        return arr.kind
+    return "seerr" if ctx.seerr is not None else None
+
+
+def can_send_direct(ctx: Ctx, media_type: str = "movie") -> bool:
+    return destination(ctx, media_type) is not None and (ctx.is_admin or ctx.user.can_request_direct)
 
 
 def _notify(ctx: Ctx, user_id: int, req: MediaRequest, key: str, **params) -> None:
@@ -102,10 +114,74 @@ def _notify(ctx: Ctx, user_id: int, req: MediaRequest, key: str, **params) -> No
     ))
 
 
-async def _send(ctx: Ctx, req: MediaRequest, seasons: list[int] | None = None) -> None:
-    res = await ctx.seerr.request(req.media_type, req.tmdb_id, seasons)
-    req.status = "sent"
-    req.seerr_url = res.get("url")
+SENT_MESSAGES = {"radarr": "Demande envoyée à Radarr", "sonarr": "Demande envoyée à Sonarr", "seerr": "Demande envoyée à Seerr"}
+
+
+class AcceptIn(BaseModel):
+    """Choix de l'administrateur en acceptant : catégorie et qualité (sinon celles proposées)."""
+
+    category: str | None = Field(None, max_length=40)
+    quality_profile: int | None = Field(None, gt=0)
+
+
+async def _tmdb_raw(ctx: Ctx, media_type: str, tmdb_id: int) -> dict:
+    """Fiche TMDB complète (genres, mots-clés, identifiant TVDB) ; vide si TMDB ne répond pas."""
+    if getattr(ctx.tmdb, "is_mock", False):
+        return {}  # sans clé TMDB : catégorie par défaut, et pas d'identifiant TVDB pour Sonarr
+    try:
+        return await ctx.tmdb.detail_raw(media_type, tmdb_id) or {}
+    except ServiceError:
+        return {}
+
+
+async def _choices(ctx: Ctx, media_type: str, tmdb_id: int) -> dict:
+    """Destination, catégories (celle proposée pour ce titre) et qualités possibles, avant l'envoi."""
+    dest = destination(ctx, media_type)
+    if dest in (None, "seerr"):
+        return {"destination": dest}
+    arr = ctx.radarr if dest == "radarr" else ctx.sonarr
+    cats = arr_categories.complete(arr.categories)
+    suggested = arr_categories.suggest(cats, await _tmdb_raw(ctx, media_type, tmdb_id))
+    try:
+        profiles = (await arr.options())["quality_profiles"]
+    except ServiceError:
+        profiles = []  # liste indisponible : la qualité de la catégorie reste utilisable
+    return {
+        "destination": dest,
+        "categories": [{"id": c["id"], "name": c["name"], "quality_profile": c["quality_profile"]} for c in cats],
+        "suggested": suggested["id"] if suggested else None,
+        "quality_profiles": profiles,
+    }
+
+
+async def _send(ctx: Ctx, req: MediaRequest, seasons: list[int] | None = None, choice: AcceptIn | None = None) -> str:
+    """Envoie la demande acceptée ; renvoie sa destination. Radarr qui a déjà le fichier : disponible tout de suite."""
+    dest = destination(ctx, req.media_type)
+    if dest is None:
+        if req.media_type == "movie":
+            raise NotConfigured("radarr", "Ni Radarr ni Seerr ne sont prêts : règle-les dans Profil → Connexions")
+        raise NotConfigured("sonarr", "Ni Sonarr ni Seerr ne sont prêts : règle-les dans Profil → Connexions")
+    if dest == "seerr":
+        res = await ctx.seerr.request(req.media_type, req.tmdb_id, seasons)
+        req.seerr_url = res.get("url")
+        state = "sent"
+    else:
+        arr = ctx.radarr if dest == "radarr" else ctx.sonarr
+        raw = await _tmdb_raw(ctx, req.media_type, req.tmdb_id)
+        cat = arr_categories.find(arr.categories, choice and choice.category) or arr_categories.suggest(arr.categories, raw)
+        profile = (choice and choice.quality_profile) or cat["quality_profile"]
+        if dest == "radarr":
+            state = await arr.add_movie(req.tmdb_id, cat["root_folder"], profile)
+        else:
+            tvdb_id = raw.get("external_ids", {}).get("tvdb_id")
+            if not tvdb_id:
+                raise ServiceError("sonarr", "Série sans identifiant TVDB : Sonarr ne peut pas l'ajouter", 422)
+            series_type = "anime" if cat.get("rule") == "anime" else "standard"
+            state = await arr.add_series(int(tvdb_id), cat["root_folder"], profile, seasons, series_type)
+        req.sent_category = cat["name"]
+    req.status = "available" if state == "available" else "sent"
+    req.sent_to = dest
+    return dest
 
 
 @router.get("")
@@ -123,7 +199,9 @@ def list_requests(status: str | None = None, scope: Literal["mine", "all"] = "mi
         "results": [_out(ctx, r, names) for r in rows],
         "pending": sum(1 for r in rows if r.status == "pending"),
         "seerr": ctx.seerr is not None,
-        "direct": can_send_direct(ctx),
+        # Destination d'une demande acceptée, par type (bouton « Accepter » de l'administrateur)
+        "send_to": {"movie": destination(ctx, "movie"), "tv": destination(ctx, "tv")},
+        "direct": can_send_direct(ctx, "movie") or can_send_direct(ctx, "tv"),
         "allowed": can_request(ctx),
     }
 
@@ -151,13 +229,14 @@ async def create_request(body: RequestIn, ctx: Ctx = Depends(get_ctx)):
     )
     ctx.db.add(req)
     message = "Demande enregistrée — l'administrateur la traitera"
-    if can_send_direct(ctx):
+    if can_send_direct(ctx, body.media_type):
         try:
-            await _send(ctx, req, body.seasons)
-            message = "Demande envoyée à Seerr"
+            choice = AcceptIn(category=body.category, quality_profile=body.quality_profile) if ctx.is_admin else None
+            message = SENT_MESSAGES[await _send(ctx, req, body.seasons, choice)]
         except ServiceError as e:
             # On garde la demande en attente plutôt que de la perdre
-            message = f"Seerr indisponible ({e.message}) — demande gardée en attente"
+            req.status = "pending"
+            message = f"{e.message} — demande gardée en attente"
     if req.status == "pending" and not ctx.is_admin:
         # Prévient les administrateurs (cloche) qu'une demande attend
         for admin in ctx.db.query(User).filter(User.role == "admin", User.active.is_(True)):
@@ -166,14 +245,33 @@ async def create_request(body: RequestIn, ctx: Ctx = Depends(get_ctx)):
     return {"request": _out(ctx, req, _names(ctx)), "created": True, "message": message}
 
 
-@router.post("/{request_id}/send")
-async def send_to_seerr(request_id: int, ctx: Ctx = Depends(get_ctx)):
+@router.get("/choices/{media_type}/{tmdb_id}")
+async def new_request_choices(media_type: Literal["movie", "tv"], tmdb_id: int, ctx: Ctx = Depends(get_ctx)):
+    """Demande de l'administrateur depuis une fiche : choix de la catégorie et de la qualité avant l'envoi."""
+    if not ctx.is_admin:
+        raise HTTPException(403, "Réservé à l'administrateur")
+    return await _choices(ctx, media_type, tmdb_id)
+
+
+@router.get("/{request_id}/accept")
+async def accept_options(request_id: int, ctx: Ctx = Depends(get_ctx)):
+    """Avant d'accepter : destination, catégories (celle proposée pour ce titre) et qualités possibles."""
     req = _get(ctx, request_id)
-    if not ctx.seerr:
-        raise NotConfigured("seerr")
-    await _send(ctx, req)
+    return await _choices(ctx, req.media_type, req.tmdb_id)
+
+
+@router.post("/{request_id}/send")
+async def send_request(request_id: int, body: AcceptIn | None = None, ctx: Ctx = Depends(get_ctx)):
+    """L'administrateur accepte la demande : envoi à Radarr / Sonarr (catégorie et qualité choisies) ou à Seerr."""
+    req = _get(ctx, request_id)
+    if req.status != "pending":
+        raise HTTPException(409, "Cette demande a déjà été traitée")
+    dest = await _send(ctx, req, choice=body)
     if req.user_id != ctx.user.id:
-        _notify(ctx, req.user_id, req, "Ta demande « {title} » a été envoyée à Seerr")
+        if dest == "seerr":
+            _notify(ctx, req.user_id, req, "Ta demande « {title} » a été envoyée à Seerr")
+        else:
+            _notify(ctx, req.user_id, req, "Ta demande « {title} » a été acceptée")
     ctx.db.commit()
     return _out(ctx, req, _names(ctx))
 

@@ -13,7 +13,7 @@ from app import __version__
 from app.config import config
 from app.database import init_db
 import app.services.push  # noqa: F401 — envoi push à chaque notification enregistrée
-from app.routers import admin, admin_backups, admin_server, auth, auth_external, cinema, episodes, jellyfin, justwatch, letterboxd, library, media, news, notifications, plex, push, requests, search, seerr, swipe, tmdb, tonight, trakt, user
+from app.routers import admin, admin_backups, admin_server, arr, auth, auth_external, cinema, episodes, jellyfin, justwatch, letterboxd, library, media, news, notifications, plex, push, requests, search, seerr, swipe, tmdb, tonight, trakt, user
 from app.scheduler import start_scheduler, stop_scheduler
 from app.services.auth import require_ready
 from app.services.errors import ServiceError
@@ -193,7 +193,7 @@ async def same_origin_only(request: Request, call_next):
 app.include_router(auth.router, prefix="/api")
 app.include_router(auth_external.router, prefix="/api")  # connexion avec Plex / Jellyfin
 # Tout le reste exige une session (et un mot de passe provisoire déjà changé)
-for r in (user, tmdb, media, library, cinema, requests, tonight, episodes, trakt, plex, swipe, search, notifications, push, jellyfin, letterboxd, seerr, justwatch, news, admin, admin_server, admin_backups):
+for r in (user, tmdb, media, library, cinema, requests, tonight, episodes, trakt, plex, swipe, search, notifications, push, jellyfin, letterboxd, seerr, justwatch, news, admin, admin_server, admin_backups, arr):
     app.include_router(r.router, prefix="/api", dependencies=[Depends(require_ready)])
 
 

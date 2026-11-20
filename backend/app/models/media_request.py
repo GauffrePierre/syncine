@@ -11,8 +11,9 @@ REQUEST_STATUSES = ("pending", "sent", "declined", "available")
 class MediaRequest(UserScoped, Base):
     """Demande d'ajout d'un titre à la bibliothèque Plex.
 
-    - Seerr connecté : envoyée tout de suite à Seerr (statut « sent »), validée ensuite dans Seerr.
-    - Sans Seerr : reste « pending » ; l'administrateur la traite depuis SynCiné.
+    - Acceptée (par l'administrateur, ou directement pour un compte qu'il autorise) : envoyée à Radarr / Sonarr,
+      sinon à Seerr (statut « sent », destination dans sent_to).
+    - Sinon : reste « pending » ; l'administrateur la traite depuis SynCiné.
     """
 
     __tablename__ = "media_requests"
@@ -26,6 +27,8 @@ class MediaRequest(UserScoped, Base):
     requested_by: Mapped[str] = mapped_column(String, default="admin")  # identifiant de compte (multi-comptes à venir)
     status: Mapped[str] = mapped_column(String(16), default="pending")
     seerr_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    sent_to: Mapped[str] = mapped_column(String(16), default="")  # "radarr" | "sonarr" | "seerr" une fois envoyée
+    sent_category: Mapped[str] = mapped_column(String, default="")  # catégorie Radarr / Sonarr choisie
     note: Mapped[str] = mapped_column(String, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -42,6 +45,8 @@ class MediaRequest(UserScoped, Base):
             "user_id": self.user_id,
             "status": self.status,
             "seerr_url": self.seerr_url,
+            "sent_to": self.sent_to or ("seerr" if self.status == "sent" else ""),
+            "sent_category": self.sent_category or "",
             "note": self.note,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

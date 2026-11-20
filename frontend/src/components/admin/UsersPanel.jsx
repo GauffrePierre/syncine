@@ -106,7 +106,7 @@ function AddUserModal({ open, onClose }) {
         <Input label={t('Nom affiché')} value={form.display_name} onChange={(e) => set('display_name')(e.target.value)} />
         <PasswordInput label={t('Mot de passe provisoire')} value={form.password} onChange={set('password')} />
         <div className="space-y-2">
-          <Check2 label={t('Demandes envoyées directement à Seerr')} checked={form.can_request_direct} onChange={set('can_request_direct')} />
+          <Check2 label={t('Demandes acceptées sans validation')} checked={form.can_request_direct} onChange={set('can_request_direct')} />
           <Check2 label={t('Administrateur')} checked={form.role === 'admin'} onChange={(v) => set('role')(v ? 'admin' : 'member')} />
         </div>
         <Button type="submit" variant="primary" className="w-full justify-center" loading={create.isPending} icon={Plus}>
@@ -212,7 +212,7 @@ function UserRow({ user, me, onReset, onDelete }) {
         {!user.is_admin && (
           <label className="mt-1.5 flex items-center gap-2 text-xs text-text2">
             <input type="checkbox" checked={user.can_request_direct} onChange={(e) => update.mutate({ can_request_direct: e.target.checked })} className="h-3.5 w-3.5" />
-            {t('Demandes envoyées directement à Seerr')}
+            {t('Demandes acceptées sans validation')}
           </label>
         )}
         {/* Compte Jellyfin relié : la connexion avec lui reste à autoriser par l'administrateur */}
@@ -334,7 +334,7 @@ function PlexAccounts() {
           }}
         >
           <Input label={t('Nom affiché')} value={form.display_name} onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))} />
-          <Check2 label={t('Demandes envoyées directement à Seerr')} checked={form.can_request_direct} onChange={(v) => setForm((f) => ({ ...f, can_request_direct: v }))} />
+          <Check2 label={t('Demandes acceptées sans validation')} checked={form.can_request_direct} onChange={(v) => setForm((f) => ({ ...f, can_request_direct: v }))} />
           <Check2 label={t('Permettre aussi la connexion par identifiant et mot de passe')} checked={form.withPassword} onChange={(v) => setForm((f) => ({ ...f, withPassword: v }))} />
           {form.withPassword && <PasswordInput label={t('Mot de passe provisoire')} value={form.password} onChange={(v) => setForm((f) => ({ ...f, password: v }))} />}
           <p className="text-xs text-text3">{t("Cette personne se connectera avec « Se connecter avec Plex ». SynCiné vérifie que c'est bien ce compte Plex.")}</p>

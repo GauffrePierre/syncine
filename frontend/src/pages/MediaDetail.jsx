@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { Check, ChevronLeft, Clapperboard, Clock, Download, Heart, Play, Star, X } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { REQUEST_STATUS, requests } from '../services/requests'
+import { requestStatus, requests } from '../services/requests'
 import { toast } from '../store/uiStore'
 import Poster from '../components/media/Poster'
 import MediaRow from '../components/media/MediaRow'
@@ -34,6 +34,8 @@ import { currentLocale, fmtNumber, useT } from '../i18n'
 import WatchlistButton from '../components/ui/WatchlistButton'
 import { SourceChips } from './Watchlist'
 import WatchLink from '../components/ui/WatchLink'
+import AcceptRequest from '../components/profile/AcceptRequest'
+import { useIsAdmin } from '../hooks/useAuth'
 
 function RatingPill({ label, value, sub, color }) {
   return (
@@ -51,6 +53,22 @@ function RatingPill({ label, value, sub, color }) {
 function RequestButton({ d }) {
   const t = useT()
   const qc = useQueryClient()
+  const isAdmin = useIsAdmin()
+  const [choosing, setChoosing] = useState(false) // administrateur : catégorie et qualité Radarr / Sonarr avant l'envoi
+  const [checking, setChecking] = useState(false)
+  const ask = async () => {
+    if (!isAdmin) return create.mutate()
+    setChecking(true)
+    try {
+      const c = await qc.fetchQuery({ queryKey: ['request-choices', d.media_type, d.id], queryFn: () => requests.choices(d.media_type, d.id) })
+      if (c.destination === 'radarr' || c.destination === 'sonarr') setChoosing(true)
+      else create.mutate()
+    } catch {
+      create.mutate() // choix indisponibles : envoi avec la catégorie proposée
+    } finally {
+      setChecking(false)
+    }
+  }
   const create = useMutation({
     mutationFn: () => requests.create(d),
     onSuccess: (r) => {
@@ -63,7 +81,7 @@ function RequestButton({ d }) {
   const seerrState = d.seerr?.configured && ['pending', 'processing', 'partially_available', 'available'].includes(d.seerr.status) ? d.seerr : null
   const req = d.request
   if (seerrState || req) {
-    const label = t(seerrState ? seerrState.label : (REQUEST_STATUS[req.status] || REQUEST_STATUS.pending).label)
+    const label = t(seerrState ? seerrState.label : requestStatus(req).label)
     const href = safeUrl(seerrState?.url || req?.seerr_url)
     const chip = (
       <span className="ml-1 inline-flex items-center gap-1 rounded-lg bg-seerr/15 px-2 py-1 text-[11px] font-medium text-seerr">
@@ -79,25 +97,28 @@ function RequestButton({ d }) {
     )
   }
   return (
-    <Button
-      size="sm"
-      variant="primary"
-      icon={Download}
-      loading={create.isPending}
-      onClick={() => create.mutate()}
-      className="ml-1 !h-7 !px-2.5"
-      title={
-        d.in_theaters
-          ? d.digital_date
-            ? t('Encore au cinéma : la demande sera traitée à sa sortie en numérique (prévue le {date})', { date: formatDate(d.digital_date) })
-            : t('Encore au cinéma : la demande sera traitée à sa sortie en numérique')
-          : d.seerr?.configured
-            ? t('Envoyer une demande à Seerr')
-            : t("Demander l'ajout à l'administrateur")
-      }
-    >
-      {d.in_theaters ? t("Demander l'ajout quand il sortira") : t("Demander l'ajout")}
-    </Button>
+    <>
+      <Button
+        size="sm"
+        variant="primary"
+        icon={Download}
+        loading={create.isPending || checking}
+        onClick={ask}
+        className="ml-1 !h-7 !px-2.5"
+        title={
+          d.in_theaters
+            ? d.digital_date
+              ? t('Encore au cinéma : la demande sera traitée à sa sortie en numérique (prévue le {date})', { date: formatDate(d.digital_date) })
+              : t('Encore au cinéma : la demande sera traitée à sa sortie en numérique')
+            : d.seerr?.configured
+              ? t('Envoyer une demande à Seerr')
+              : t("Demander l'ajout à l'administrateur")
+        }
+      >
+        {d.in_theaters ? t("Demander l'ajout quand il sortira") : t("Demander l'ajout")}
+      </Button>
+      {choosing && <AcceptRequest item={d} onClose={() => setChoosing(false)} />}
+    </>
   )
 }
 

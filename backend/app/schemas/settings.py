@@ -4,8 +4,12 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.models import UserSettings
+from app.services import arr_categories
 
-SECRET_FIELDS = ("tmdb_api_key", "plex_token", "trakt_client_secret", "seerr_api_key", "youtube_api_key", "jellyfin_api_key")
+SECRET_FIELDS = (
+    "tmdb_api_key", "plex_token", "trakt_client_secret", "seerr_api_key", "youtube_api_key", "jellyfin_api_key", "radarr_api_key",
+    "sonarr_api_key",
+)
 
 
 def _nav_order(raw: str) -> list[str]:
@@ -32,6 +36,10 @@ class SettingsOut(BaseModel):
     trakt_username: str
     trakt_connected: bool
     seerr_url: str
+    radarr_url: str
+    radarr_categories: list[dict]
+    sonarr_url: str
+    sonarr_categories: list[dict]
     letterboxd_username: str
     justwatch_enabled: bool
     cinemas: list[dict]
@@ -71,6 +79,10 @@ class SettingsOut(BaseModel):
             trakt_username=s.trakt_username,
             trakt_connected=bool(s.trakt_access_token),
             seerr_url=s.seerr_url if admin else "",
+            radarr_url=s.radarr_url if admin else "",
+            radarr_categories=arr_categories.load(s, "radarr") if admin else [],
+            sonarr_url=s.sonarr_url if admin else "",
+            sonarr_categories=arr_categories.load(s, "sonarr") if admin else [],
             letterboxd_username=s.letterboxd_username,
             justwatch_enabled=s.justwatch_enabled,
             cinemas=s.cinema_list,
@@ -102,6 +114,16 @@ class SettingsOut(BaseModel):
 Text = Annotated[str, StringConstraints(max_length=500)]  # clés, jetons, adresses : jamais plus
 
 
+class ArrCategory(BaseModel):
+    """Catégorie Radarr / Sonarr : dossier de destination et qualité par défaut, proposée pour un genre."""
+
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9-]{1,40}$")]
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+    rule: Literal[arr_categories.RULES] = "default"
+    root_folder: Annotated[str, StringConstraints(max_length=500)] = ""
+    quality_profile: int = Field(default=0, ge=0)
+
+
 class SettingsUpdate(BaseModel):
     """Tous les champs sont optionnels : seuls ceux envoyés sont modifiés. Une chaîne vide efface."""
 
@@ -113,6 +135,12 @@ class SettingsUpdate(BaseModel):
     trakt_client_secret: Text | None = None
     seerr_url: Text | None = None
     seerr_api_key: Text | None = None
+    radarr_url: Text | None = None
+    radarr_api_key: Text | None = None
+    radarr_categories: list[ArrCategory] | None = Field(default=None, max_length=20)
+    sonarr_url: Text | None = None
+    sonarr_api_key: Text | None = None
+    sonarr_categories: list[ArrCategory] | None = Field(default=None, max_length=20)
     # Pseudo Letterboxd (placé dans l'adresse du flux) : lettres, chiffres et tirets bas seulement
     letterboxd_username: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^@?[A-Za-z0-9_]{0,40}$")] | None = None
     justwatch_enabled: bool | None = None

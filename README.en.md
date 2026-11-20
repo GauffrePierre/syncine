@@ -124,7 +124,7 @@ This is the heart of SynCiné: suggestions built from **everything you've watche
 **For the family (server edition)**
 - One administrator and an account for each member: everyone has their own watchlist, ratings, history and services.
 - Sign in with a password, or with a Plex or Jellyfin / Emby account the administrator has allowed (with Jellyfin, through a **Quick Connect** code, without typing the Jellyfin password).
-- **Add requests**: sent straight to Seerr for allowed members, otherwise queued for the administrator.
+- **Add requests**: queued for the administrator. An accepted request goes to **Radarr** (movies) or **Sonarr** (series), which download it, or to Seerr. Allowed members are accepted without approval.
 - **Family** (if each person wants to): “The family loved” in Discover, filterable by member, and a **group evening** in Tonight: pick who's watching (your common watchlists, then what you'd all like).
 - **With the kids**: set the ages of the household's children in Preferences (3-6, 7-10, 11-14); “With the kids” in Tonight keeps only titles for their age.
 - **Shared watchlists** (if each person wants to): the administrator sees what the family wants to watch but can't find on their services or in the library.
@@ -148,9 +148,10 @@ This is the heart of SynCiné: suggestions built from **everything you've watche
 | [Plex](https://www.plex.tv) | Your library, playback, history, family accounts | Optional |
 | [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Your library, playback, watched titles, history, family accounts | Optional |
 | [TVmaze](https://www.tvmaze.com) | Exact day and time of a series' next episode (CC BY-SA data) | Automatic, no key |
-| [Seerr](https://github.com/seerr-team/seerr) | Requests to add titles to your library | Optional |
+| [Radarr](https://radarr.video) · [Sonarr](https://sonarr.tv) | Download the movies and series of accepted requests | Optional |
+| [Seerr](https://github.com/seerr-team/seerr) | Requests to add titles to your library (instead of Radarr / Sonarr) | Optional |
 
-SynCiné never downloads anything. It can only pass a request on to Seerr, which handles it according to your settings.
+SynCiné never downloads anything itself. A request accepted by the administrator is passed on to Radarr or Sonarr (or Seerr), which handle it according to your settings.
 
 ## Installation
 
@@ -265,7 +266,8 @@ In short, everything is set up in **Profile**, in this order:
    - **Letterboxd**: your username.
    - **Plex**: **Sign in with Plex**, then enter the code at plex.tv/link. SynCiné then finds the best connection to your server on its own.
    - **Jellyfin / Emby**: the server address as seen from SynCiné (local IP, not `localhost` under Docker) and an API key (Jellyfin: Dashboard → API Keys; Emby: Settings → API Keys).
-   - **Seerr**: its address and API key.
+   - **Radarr / Sonarr**: their address as seen from SynCiné and their API key (Settings → General), then your categories (movies, shows, documentaries, concerts; series, cartoons, anime…), each with its folder and default quality. When you accept a request, SynCiné suggests the category from the title's genre, and you can change the category or the quality (1080p, 4K…).
+   - **Seerr**: its address and API key (used for movies or series when Radarr or Sonarr is not set up).
 
 **Automatic sync** (the same watchlist everywhere, watched titles and ratings copied where they're missing) is in Profile → Sync. A preview shows what will change before you turn it on.
 
@@ -277,9 +279,9 @@ In **Profile → Admin** (or the **Admin area** menu entry):
 - **Local accounts**: you choose a username and a temporary password, which the person changes when they first sign in.
 - **Plex accounts**: SynCiné lists the people your Plex server is shared with. Once allowed, they use "Sign in with Plex". SynCiné checks it really is that account, and everyone gets their own watched titles and progress.
 - **Jellyfin / Emby accounts**: SynCiné lists the accounts on your server. Once allowed, they use "Sign in with Jellyfin" (or Emby) with their usual password, checked by your server.
-- **Direct Seerr requests**: enabled per account. Otherwise requests land in the administrator's Requests tab, with a notification.
+- **Requests accepted without approval**: enabled per account. Otherwise requests land in the administrator's Requests tab, with a notification, to accept (sent to Radarr, Sonarr or Seerr) or decline.
 
-The TMDB key, media server (Plex, Jellyfin or Emby), Seerr and JustWatch are set once by the administrator and shared by everyone. Trakt, Letterboxd, streaming services and cinemas are set per account.
+The TMDB key, media server (Plex, Jellyfin or Emby), Radarr, Sonarr, Seerr and JustWatch are set once by the administrator and shared by everyone. Trakt, Letterboxd, streaming services and cinemas are set per account.
 
 </details>
 

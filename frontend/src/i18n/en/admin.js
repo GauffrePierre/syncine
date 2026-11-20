@@ -160,4 +160,5 @@ export default {
   "Tout ce qui est dans sa watchlist est déjà accessible": "Everything in this watchlist is already available",
   "Voulus par plusieurs personnes": "Wanted by several people",
   "Chaque membre peut partager la sienne avec toi : Profil → Préférences → Partage.": "Each member can share theirs with you: Profile → Preferences → Sharing.",
+  'Demandes acceptées sans validation': 'Requests accepted without approval',
 }

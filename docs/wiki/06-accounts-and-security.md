@@ -161,7 +161,7 @@ Plex artwork is relayed the same way through `GET /api/plex/image` so the Plex t
 
 ## Secrets never reach the browser
 
-- `SECRET_FIELDS` (`tmdb_api_key`, `plex_token`, `trakt_client_secret`, `seerr_api_key`, `youtube_api_key`) are returned only as a masked preview (`••••` + last 4 characters) to admins, and as `••••` or `null` to members.
+- `SECRET_FIELDS` (`tmdb_api_key`, `plex_token`, `trakt_client_secret`, `seerr_api_key`, `youtube_api_key`, `jellyfin_api_key`, `radarr_api_key`, `sonarr_api_key`) are returned only as a masked preview (`••••` + last 4 characters) to admins, and as `••••` or `null` to members.
 - When the masked value comes back unchanged in `PUT /api/settings`, it is ignored, so saving a form never overwrites a key.
 - OAuth tokens (Trakt, plex.tv) are never serialised at all.
 - On disk, the entrypoint makes the data folder `700` and its files `600`, owned by `PUID:PGID`, and the server runs without root. Back up `cinesync.db` like a secret.

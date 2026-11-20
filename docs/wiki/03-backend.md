@@ -32,7 +32,8 @@ All are mounted under `/api` in `main.py`.
 | `plex.py` | `/plex` | Library, image relay, server linking (admin), watch links |
 | `cinema.py` | `/cinema` | Cinema search and showtimes |
 | `episodes.py` | `/episodes` | Per-episode series tracking |
-| `requests.py` | `/requests` | Add requests (direct to Seerr or admin queue) |
+| `requests.py` | `/requests` | Add requests (admin queue; accepted ones go to Radarr / Sonarr, else Seerr) |
+| `arr.py` | `/arr` | Radarr / Sonarr folders and quality profiles (main admin) |
 | `seerr.py` | `/seerr` | Seerr status of a title |
 | `justwatch.py` | `/justwatch` | Charts and new arrivals |
 | `letterboxd.py` | `/letterboxd` | Diary |

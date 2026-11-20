@@ -1,13 +1,17 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, Check, Inbox, Send, Trash2, X } from 'lucide-react'
+import { ArrowRight, Check, Download, Inbox, Trash2, X } from 'lucide-react'
 import Poster from '../media/Poster'
 import Button from '../ui/Button'
-import { REQUEST_STATUS, requests } from '../../services/requests'
+import AcceptRequest from './AcceptRequest'
+import { requestStatus, requests } from '../../services/requests'
 import { useIsAdmin } from '../../hooks/useAuth'
 import { relativeTime } from '../../lib/format'
 import { toast } from '../../store/uiStore'
 import { useT } from '../../i18n'
+
+const DEST_LABELS = { radarr: 'Radarr', sonarr: 'Sonarr', seerr: 'Seerr' }
 
 /**
  * Demandes d'ajout à la bibliothèque du serveur (Plex, Jellyfin ou Emby).
@@ -19,6 +23,7 @@ export default function RequestsPanel({ scope = 'mine' }) {
   const qc = useQueryClient()
   const isAdmin = useIsAdmin()
   const manage = scope === 'all'
+  const [accepting, setAccepting] = useState(null) // demande à accepter (catégorie et qualité Radarr / Sonarr)
   const { data, isLoading } = useQuery({ queryKey: ['requests', scope], queryFn: () => requests.list(scope) })
   const act = useMutation({
     mutationFn: ({ fn }) => fn(),
@@ -36,7 +41,7 @@ export default function RequestsPanel({ scope = 'mine' }) {
   const footer = !manage && (
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-text3">
       <span>
-        {data?.direct ? t('Tes demandes sont envoyées directement à Seerr.') : t("Tes demandes sont transmises à l'administrateur.")}
+        {data?.direct ? t('Tes demandes sont acceptées tout de suite, sans validation.') : t("Tes demandes sont transmises à l'administrateur.")}
       </span>
       {isAdmin && (
         <Link to="/profile?tab=admin&section=requests" className="inline-flex items-center gap-1 text-accent2 hover:underline">
@@ -62,7 +67,8 @@ export default function RequestsPanel({ scope = 'mine' }) {
     <div>
       <div className="space-y-2">
         {list.map((r) => {
-          const st = REQUEST_STATUS[r.status] || REQUEST_STATUS.pending
+          const st = requestStatus(r)
+          const dest = data?.send_to?.[r.media_type]
           const pending = r.status === 'pending'
           return (
             <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-line bg-bg2 p-3">
@@ -74,15 +80,18 @@ export default function RequestsPanel({ scope = 'mine' }) {
                   {r.title} {r.year && <span className="text-text3">({r.year})</span>}
                 </Link>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-text3">
-                  <span className={`rounded-md px-1.5 py-0.5 font-medium ${st.cls}`}>{t(st.label)}</span>
+                  <span className={`rounded-md px-1.5 py-0.5 font-medium ${st.cls}`}>
+                    {t(st.label)}
+                    {r.sent_category && ` · ${r.sent_category}`}
+                  </span>
                   {manage && r.user_name && <span className="text-text2">{r.user_name}</span>}
                   {relativeTime(r.created_at)}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                {manage && pending && data.seerr && (
-                  <Button size="sm" icon={Send} title={t('Envoyer à Seerr')} onClick={() => act.mutate({ fn: () => requests.sendToSeerr(r.id), message: t('Envoyée à Seerr') })}>
-                    Seerr
+                {manage && pending && dest && (
+                  <Button size="sm" icon={Download} title={t('Accepter : envoi à {name}', { name: DEST_LABELS[dest] })} onClick={() => (dest === 'seerr' ? act.mutate({ fn: () => requests.accept(r.id), message: t('Demande acceptée : envoyée à {name}', { name: DEST_LABELS[dest] }) }) : setAccepting(r))}>
+                    {t('Accepter')}
                   </Button>
                 )}
                 {manage && pending && (
@@ -106,6 +115,7 @@ export default function RequestsPanel({ scope = 'mine' }) {
         })}
       </div>
       {footer}
+      {accepting && <AcceptRequest request={accepting} onClose={() => setAccepting(null)} />}
     </div>
   )
 }

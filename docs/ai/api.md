@@ -149,9 +149,17 @@ Regenerate: see `docs/ai/recipes.md` → *Regenerate this file*.
 |---|---|---|---|---|
 | GET | `/api/requests` | `list_requests` | session |  |
 | POST | `/api/requests` | `create_request` | session |  |
-| POST | `/api/requests/{request_id}/send` | `send_to_seerr` | session |  |
+| GET | `/api/requests/choices/{media_type}/{tmdb_id}` | `new_request_choices` | admin | same as below, for the admin's own request from a title page |
+| GET | `/api/requests/{request_id}/accept` | `accept_options` | admin | destination, categories (suggested one), quality profiles |
+| POST | `/api/requests/{request_id}/send` | `send_request` | admin | accepts (optional `category`, `quality_profile`): Radarr / Sonarr, else Seerr |
 | PATCH | `/api/requests/{request_id}` | `update_request` | session |  |
 | DELETE | `/api/requests/{request_id}` | `delete_request` | session |  |
+
+## `arr.py`
+
+| Method | Path | Handler | Access | Notes |
+|---|---|---|---|---|
+| GET | `/api/arr/{kind}/options` | `options` | server admin | Radarr / Sonarr root folders and quality profiles |
 
 ## `search.py`
 

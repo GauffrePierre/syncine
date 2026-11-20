@@ -99,7 +99,8 @@ Every account has its own `user_settings` row, but some fields describe the **se
 
 ```
 tmdb_api_key, plex_url, plex_server_name, plex_machine_id, plex_client_id,
-seerr_url, seerr_api_key, justwatch_enabled, trakt_client_id, trakt_client_secret, youtube_api_key
+seerr_url, seerr_api_key, justwatch_enabled, trakt_client_id, trakt_client_secret, youtube_api_key,
+radarr_url, radarr_api_key, radarr_root_folder, radarr_quality_profile, sonarr_url, sonarr_api_key, …
 ```
 
 `EffectiveSettings` routes reads and writes: a global field goes to the shared row (`SHARED_ID = 1`, the main admin), anything else to the account's own row. Its `.own` and `.shared` properties give direct access when needed (for example, `plex_token` exists on both: the admin's server token on the shared row and a member's own server token on theirs). Only admins may change `ADMIN_FIELDS` (`GLOBAL_FIELDS | {"plex_token"}`, in `routers/user.py`).

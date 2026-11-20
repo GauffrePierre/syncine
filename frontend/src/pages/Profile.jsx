@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Clock, Film, Layers, Monitor, Moon, Plug, Plus, RotateCcw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Tv, User } from 'lucide-react'
 import ConnectionCard from '../components/profile/ConnectionCard'
+import ArrOptions from '../components/profile/ArrOptions'
 import TraktConnect from '../components/profile/TraktConnect'
 import JellyfinConnect from '../components/profile/JellyfinConnect'
 import PlexConnect from '../components/profile/PlexConnect'
@@ -40,6 +41,8 @@ const SERVICE_META = {
   jellyfin: { label: 'Jellyfin / Emby', color: '#aa5cc3', hint: 'Ta bibliothèque Jellyfin ou Emby, tes vus' },
   trakt: { label: 'Trakt', color: 'var(--trakt)', hint: 'Watchlist, historique, notes' },
   seerr: { label: 'Seerr', color: 'var(--seerr)', hint: "Demandes d'ajout à ta bibliothèque" },
+  radarr: { label: 'Radarr', color: '#e8a400', hint: 'Télécharge les films des demandes acceptées' },
+  sonarr: { label: 'Sonarr', color: '#2193b5', hint: 'Télécharge les séries des demandes acceptées' },
   letterboxd: { label: 'Letterboxd', color: 'var(--letterboxd)', hint: 'Ton journal de films (RSS)' },
   justwatch: { label: 'JustWatch', color: 'var(--justwatch)', hint: 'Liens directs, top du jour, nouveautés' },
 }
@@ -167,6 +170,8 @@ export default function Profile() {
     jellyfin: !!status?.jellyfin?.server_linked,
     trakt: !!settings.trakt_client_id,
     seerr: !!status?.seerr?.configured,
+    radarr: !!status?.radarr?.configured,
+    sonarr: !!status?.sonarr?.configured,
     letterboxd: !!status?.letterboxd?.configured,
     justwatch: !!settings.justwatch_enabled,
   }
@@ -383,6 +388,28 @@ export default function Profile() {
                   { name: 'seerr_api_key', label: 'Clé API', secret: true, placeholder: 'Paramètres → Général → Clé API', hint: 'Dans Seerr : Paramètres → Général → Clé API' },
                 ]}
               />
+              )}
+
+              {['radarr', 'sonarr'].map(
+                (kind) =>
+                  shown(kind) && (
+                    <ConnectionCard
+                      key={kind}
+                      service={kind}
+                      title={SERVICE_META[kind].label}
+                      color={SERVICE_META[kind].color}
+                      description={kind === 'radarr' ? 'Télécharge les films des demandes que tu acceptes' : 'Télécharge les séries des demandes que tu acceptes'}
+                      settings={settings}
+                      connected={status?.[kind]?.ready}
+                      optional
+                      fields={[
+                        { name: `${kind}_url`, label: kind === 'radarr' ? 'URL de Radarr' : 'URL de Sonarr', placeholder: kind === 'radarr' ? 'http://ip-du-serveur:7878' : 'http://ip-du-serveur:8989' },
+                        { name: `${kind}_api_key`, label: 'Clé API', secret: true, placeholder: 'Settings → General → API Key', hint: 'Dans Radarr / Sonarr : Settings → General → API Key' },
+                      ]}
+                    >
+                      <ArrOptions kind={kind} settings={settings} configured={status?.[kind]?.configured} />
+                    </ConnectionCard>
+                  ),
               )}
 
               {shown('letterboxd') && (

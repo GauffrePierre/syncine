@@ -14,6 +14,8 @@ const SERVICES = {
   jellyfin: { label: 'Jellyfin', color: '#aa5cc3' },
   trakt: { label: 'Trakt', color: 'var(--trakt)' },
   seerr: { label: 'Seerr', color: 'var(--seerr)' },
+  radarr: { label: 'Radarr', color: '#e8a400' },
+  sonarr: { label: 'Sonarr', color: '#2193b5' },
   justwatch: { label: 'JustWatch', color: 'var(--justwatch)' },
   letterboxd: { label: 'Letterboxd', color: 'var(--letterboxd)' },
   cinema: { label: 'Cinéma', color: '#f59e0b' },

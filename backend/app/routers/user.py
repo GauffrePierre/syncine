@@ -12,7 +12,7 @@ from app.schemas.settings import SECRET_FIELDS, SettingsOut, SettingsUpdate, Tes
 from app.services.cache import cache
 from app.routers.jellyfin import status_for as jellyfin_status
 from app.services.context import GLOBAL_FIELDS, SHARED_ID, Ctx, get_ctx
-from app.services import health, history
+from app.services import arr_categories, health, history
 from app.services.errors import ServiceError
 
 router = APIRouter(tags=["user"])
@@ -58,6 +58,9 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
             s.country_code = value.upper()
         elif field in ("notify_episode_via", "notify_movie_via", "notify_episode_when", "family_kids"):
             setattr(s, field, json.dumps(sorted(set(value))))
+        elif field in ("radarr_categories", "sonarr_categories"):
+            seen = set()  # identifiants uniques (le premier gagne)
+            setattr(s, field, json.dumps([c for c in value if not (c["id"] in seen or seen.add(c["id"]))]))
         elif field == "nav_order":
             s.nav_order = json.dumps(list(dict.fromkeys(value)))  # sans doublons
         elif isinstance(value, str):
@@ -77,6 +80,17 @@ async def update_settings(body: SettingsUpdate, ctx: Ctx = Depends(get_ctx)):
     return SettingsOut.from_model(s, admin=ctx.server_admin, has_plex=ctx.server_admin or ctx.plex is not None)
 
 
+def _arr_status(s, kind: str) -> dict:
+    configured = bool(getattr(s, f"{kind}_url") and getattr(s, f"{kind}_api_key"))
+    return {"configured": configured, "ready": configured and bool(arr_categories.complete(arr_categories.load(s, kind)))}
+
+
+def _shows_health(ctx: Ctx, service: str) -> bool:
+    if service in health.ADMIN_SERVICES:
+        return ctx.server_admin
+    return service != "seerr" or ctx.is_admin or ctx.seerr is not None
+
+
 @router.get("/settings/status")
 def connection_status(ctx: Ctx = Depends(get_ctx)):
     s = ctx.settings
@@ -90,6 +104,8 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
         "media": {"configured": ctx.media is not None, "server": ("plex" if ctx.plex else (s.jellyfin_kind or "jellyfin")) if ctx.media else None},
         "trakt": {"configured": bool(s.trakt_client_id), "connected": bool(s.trakt_access_token), "username": s.trakt_username or None},
         "seerr": {"configured": bool(s.seerr_url and s.seerr_api_key)},
+        # Téléchargement des demandes acceptées : rien pour un membre (outil de l'administrateur)
+        **({k: _arr_status(s, k) for k in health.ADMIN_SERVICES} if ctx.server_admin else {}),
         "letterboxd": {"configured": bool(s.letterboxd_username), "username": s.letterboxd_username or None},
         "justwatch": {"configured": s.justwatch_enabled},
         "cinema": {"configured": bool(s.cinema_list), "cinemas": s.cinema_list},
@@ -97,7 +113,7 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
         "platforms": s.platforms,
         # Services utilisés et leur santé (None = pas encore vérifié) — sidebar
         # Seerr renseigne sur la bibliothèque du serveur : rien pour un membre qui n'y est pas relié
-        "health": {k: v for k, v in health.state_for(s, ctx.user.id).items() if k != "seerr" or ctx.is_admin or ctx.seerr is not None},
+        "health": {k: v for k, v in health.state_for(s, ctx.user.id).items() if _shows_health(ctx, k)},
     }
 
 
@@ -105,6 +121,8 @@ def connection_status(ctx: Ctx = Depends(get_ctx)):
 async def test_connection(service: str, ctx: Ctx = Depends(get_ctx)):
     if service not in health.SERVICES:
         raise HTTPException(404, f"Service inconnu : {service}")
+    if service in health.ADMIN_SERVICES and not ctx.server_admin:
+        raise HTTPException(403, "Réservé à l'administrateur principal")
     if service == "seerr" and not ctx.is_admin and ctx.seerr is None:
         raise HTTPException(403, "Les demandes d'ajout sont réservées aux comptes reliés au serveur multimédia")
     result = await health.test_service(ctx, service)

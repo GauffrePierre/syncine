@@ -56,6 +56,20 @@ class UserSettings(Base):
     seerr_url: Mapped[str] = mapped_column(String, default="")
     seerr_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
 
+    # Radarr (films) et Sonarr (séries) : téléchargement des demandes acceptées.
+    # *_root_folder / *_quality_profile : premier réglage (avant les catégories), lu par arr_categories.load
+    radarr_url: Mapped[str] = mapped_column(String, default="")
+    radarr_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
+    radarr_root_folder: Mapped[str] = mapped_column(String, default="")
+    radarr_quality_profile: Mapped[int] = mapped_column(Integer, default=0)
+    sonarr_url: Mapped[str] = mapped_column(String, default="")
+    sonarr_api_key: Mapped[str] = mapped_column(EncryptedString, default="")
+    sonarr_root_folder: Mapped[str] = mapped_column(String, default="")
+    sonarr_quality_profile: Mapped[int] = mapped_column(Integer, default=0)
+    # Catégories (JSON : id, name, rule, root_folder, quality_profile) ; remplacent le dossier et la qualité uniques
+    radarr_categories: Mapped[str] = mapped_column(Text, default="[]")
+    sonarr_categories: Mapped[str] = mapped_column(Text, default="[]")
+
     # Letterboxd (RSS public)
     letterboxd_username: Mapped[str] = mapped_column(String, default="")
 

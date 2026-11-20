@@ -124,7 +124,7 @@ C'est le cœur de SynCiné : des suggestions construites à partir de **tous tes
 **En famille (version serveur)**
 - Un administrateur et des comptes pour chaque membre : chacun a sa watchlist, ses notes, son historique, ses services.
 - Connexion par mot de passe, ou avec un compte Plex ou Jellyfin / Emby autorisé par l'administrateur (avec Jellyfin, par un code **Quick Connect**, sans saisir le mot de passe Jellyfin).
-- **Demandes d'ajout** : envoyées directement à Seerr pour les membres autorisés, sinon placées dans une file que l'administrateur traite.
+- **Demandes d'ajout** : placées dans une file que l'administrateur traite. Une demande acceptée part vers **Radarr** (films) ou **Sonarr** (séries), qui la téléchargent, ou vers Seerr. Les membres autorisés sont acceptés sans validation.
 - **En famille** (si chacun le veut) : « La famille a aimé » dans Découvrir, filtrable par membre, et une soirée **à plusieurs** dans Pour ce soir : choisis avec qui tu regardes (vos watchlists en commun, puis ce qui vous plairait à tous).
 - **Avec les enfants** : indique l’âge des enfants du foyer dans Préférences (3-6, 7-10, 11-14 ans) ; « Avec les enfants » dans Pour ce soir ne garde que des titres de leur âge.
 - **Watchlists partagées** (si chacun le veut) : l'administrateur voit ce que la famille veut regarder mais ne trouve ni sur ses plateformes, ni dans la bibliothèque.
@@ -148,9 +148,10 @@ C'est le cœur de SynCiné : des suggestions construites à partir de **tous tes
 | [Plex](https://www.plex.tv) | Ta bibliothèque, lecture, historique, comptes de la famille | Option |
 | [Jellyfin](https://jellyfin.org) · [Emby](https://emby.media) | Ta bibliothèque, lecture, titres vus, historique, comptes de la famille | Option |
 | [TVmaze](https://www.tvmaze.com) | Jour et heure exacts du prochain épisode d'une série (données CC BY-SA) | Automatique, sans clé |
-| [Seerr](https://github.com/seerr-team/seerr) | Demandes d'ajout à ta bibliothèque | Option |
+| [Radarr](https://radarr.video) · [Sonarr](https://sonarr.tv) | Téléchargement des films et séries des demandes acceptées | Option |
+| [Seerr](https://github.com/seerr-team/seerr) | Demandes d'ajout à ta bibliothèque (à la place de Radarr / Sonarr) | Option |
 
-SynCiné ne télécharge rien. Il peut seulement transmettre une demande à Seerr, qui la traite ensuite selon tes réglages.
+SynCiné ne télécharge rien lui-même. Une demande acceptée par l'administrateur est transmise à Radarr ou Sonarr (ou à Seerr), qui la traitent selon tes réglages.
 
 ## Installation
 
@@ -265,7 +266,8 @@ En résumé, tout se règle dans **Profil**, dans cet ordre :
    - **Letterboxd** : ton nom d'utilisateur.
    - **Plex** : **Se connecter avec Plex**, puis le code à saisir sur plex.tv/link. SynCiné trouve ensuite tout seul la meilleure connexion à ton serveur.
    - **Jellyfin / Emby** : l'adresse du serveur vue depuis SynCiné (IP locale, pas `localhost` en Docker) et une clé API (Jellyfin : Tableau de bord → Clés API ; Emby : Paramètres → Clés API).
-   - **Seerr** : son adresse et sa clé API.
+   - **Radarr / Sonarr** : leur adresse vue depuis SynCiné et leur clé API (Settings → General), puis tes catégories (films, spectacles, reportages, concerts ; séries, dessins animés, animes…), chacune avec son dossier et sa qualité par défaut. En acceptant une demande, SynCiné propose la catégorie d'après le genre du titre, et tu peux changer la catégorie ou la qualité (1080p, 4K…).
+   - **Seerr** : son adresse et sa clé API (utilisé pour les films ou les séries quand Radarr ou Sonarr n'est pas réglé).
 
 La **synchronisation automatique** (watchlist identique partout, vus et notes recopiés là où ils manquent) se règle dans Profil → Synchronisation. Un aperçu montre ce qui va changer avant de l'activer.
 
@@ -277,9 +279,9 @@ Dans **Profil → Admin** (ou l'entrée **Espace admin** du menu) :
 - **Comptes locaux** : tu choisis un identifiant et un mot de passe provisoire, que la personne change à sa première connexion.
 - **Comptes Plex** : SynCiné liste les personnes avec qui ton serveur Plex est partagé. Une fois autorisées, elles se connectent avec « Se connecter avec Plex ». SynCiné vérifie que c'est bien ce compte, et chacun retrouve ses propres vus et sa progression.
 - **Comptes Jellyfin / Emby** : SynCiné liste les comptes de ton serveur. Une fois autorisés, ils se connectent avec « Se connecter avec Jellyfin » (ou Emby), avec leur mot de passe habituel, vérifié par ton serveur.
-- **Demandes directes à Seerr** : à activer compte par compte. Sinon, les demandes arrivent dans l'onglet Demandes de l'administrateur, qui est prévenu par une notification.
+- **Demandes acceptées sans validation** : à activer compte par compte. Sinon, les demandes arrivent dans l'onglet Demandes de l'administrateur, qui est prévenu par une notification et les accepte (envoi à Radarr, Sonarr ou Seerr) ou les refuse.
 
-La clé TMDB, le serveur multimédia (Plex, Jellyfin ou Emby), Seerr et JustWatch sont réglés une fois par l'administrateur et partagés par tous. Trakt, Letterboxd, les plateformes et les cinémas sont propres à chaque compte.
+La clé TMDB, le serveur multimédia (Plex, Jellyfin ou Emby), Radarr, Sonarr, Seerr et JustWatch sont réglés une fois par l'administrateur et partagés par tous. Trakt, Letterboxd, les plateformes et les cinémas sont propres à chaque compte.
 
 </details>
 
